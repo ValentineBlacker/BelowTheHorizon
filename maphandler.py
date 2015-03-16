@@ -9,6 +9,8 @@ import pygame, prepare
 
 #CREDIT FOR PORTIONS OF MAP CODE: Christopher Breinholt
 
+COLOR_KEY = (255, 0, 255)
+ELLIPSE_SIZE = (400, 400)
 
 class MapTile(pygame.sprite.DirtySprite):
 
@@ -32,13 +34,19 @@ class foregroundMap:
         self.pixel_tile_size = (50,50)
         self.tile_size_x = self.tile_size[0]
         self.tile_size_y = self.tile_size[1]
+        self.ellipse_rect = pygame.Rect((0,0), ELLIPSE_SIZE)
         self.reset()
         
         
+        self.hole = None
+        self.hole = pygame.Surface(prepare.RESOLUTION).convert_alpha()
+        self.cdx = self.cdy = 0
         
     def load_images(self):
-        self.tileset = prepare.MAPS['demoimage']        
+        self.tileset = prepare.MAPS['hour1']             
         self.startinglocation= (0, 0)
+        
+        
         
     def generate(self):
         #self.tiles = []
@@ -54,7 +62,7 @@ class foregroundMap:
                 tile_image.blit(self.tileset, (self.startinglocation))#, (0, 0, self.tile_size_x, self.tile_size_y)
                 
                 self.tile=(MapTile(tile_image, x*self.tile_size_x, y*self.tile_size_y))
-                self.tile.shadedimage = self.shaded_image(self.tile.image, (0,0,0,220))
+                #self.tile.shadedimage = self.shaded_image(self.tile.image, (0,0,0,220))
                 #self.tiletypes.append(i)
                 
     def find_blocktiles(self):
@@ -91,18 +99,91 @@ class foregroundMap:
         shaded.fill(color, special_flags=pygame.BLEND_RGBA_MULT)
         return shaded
 
-    def shaded_image(self,image, color):
-        copied = image.copy()
-        ghost = self.ghost_image(image, color)
+    def shaded_image(self,image, color):   
+        copied = image.copy()     
+        ghost = self.ghost_image(image, color)    
         copied.blit(ghost, (0,0))
-        return copied   
+        image.blit(copied, (0,0))
+        return image
     
-    def update(self,scene, time_delta):          
+    def make_hole_alpha(self, scene):
+        
+        self.hole.fill((2,2,2,220)) 
+        
+        l = scene.light_sources[0]
+        ellipse_rect = pygame.Rect((0,0), (250,200))
+        #offset_x = abs(scene.viewport.left - l[2])
+        #offset_y = abs(scene.viewport.top - l[3])
+        offset_x = (l[2]-scene.viewport.left ) 
+        offset_y = (l[3]-scene.viewport.top)     
+        
+        ellipse_rect.center = [offset_x, offset_y]   
+        pygame.draw.ellipse(self.hole, (0,0,0,0), ellipse_rect)
+        
+        for l in scene.light_sources[1:]:        
+            ellipse_rect = pygame.Rect((0,0), (100*l[0],100*l[0]))
+            offset_x = (l[2]-scene.viewport.left ) 
+            offset_y = (l[3]-scene.viewport.top)     
+        
+            ellipse_rect.center = [offset_x, offset_y]   
+            
+            pygame.draw.ellipse(self.hole, (0,0,0,50-l[1]), ellipse_rect)
+       
+    
+    def draw_blocks(self, scene, switch):   
+        #light source tuple is (spread, brightness, rect.x, rect.y)       
+        if switch == True:       
+            for x in scene.mainmap.block_list:
+                if x.colliderect(scene.viewport):
+                    total_abspos = 0
+                    for l in scene.light_sources:
+                        abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
+                        abspos = (abspos/l[0]) - l[1]  /2
+                        total_abspos += abspos       
+                    if total_abspos == 0:
+                        total_abspos = 1
+                    total_abspos = total_abspos/len(scene.light_sources)  
+                    if total_abspos > 255: total_abspos= 255
+                    if total_abspos < 0: total_abspos = 0
+                    pygame.draw.rect(scene.level, (255-total_abspos,255-total_abspos,255-total_abspos), x)
+                
+            for x in scene.mainmap.waterblock_list:
+                if x.colliderect(scene.viewport):
+                    total_abspos = 0
+                    for l in scene.light_sources:
+                        abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
+                        abspos = (abspos/l[0]) - l[1]  /2
+                        total_abspos += abspos       
+                    if total_abspos == 0:
+                        total_abspos = 1
+                    total_abspos = total_abspos/len(scene.light_sources)  
+                    if total_abspos > 255: total_abspos= 255
+                    if total_abspos < 0: total_abspos = 0
+                    pygame.draw.rect(scene.level, (0,0,255-total_abspos), x)
+                
+            #for x in scene.mainmap.hp_block_list:
+                #pygame.draw.rect(scene.level, (255,255,255), x)
+            
+            pygame.draw.rect(scene.level, (255,255,0), self.gatecenter)
+            
+
+        else: pass
+    
+    def update(self,scene, time_delta):   
+        
         tile = self.tile            
         levelrect = scene.level.get_rect()
-        levelrect.center = scene.level.get_rect().center        
-        sub_image = pygame.Surface.subsurface(tile.shadedimage,levelrect)       
+        levelrect.center = scene.level.get_rect().center    
+        
+             
+        self.make_hole_alpha(scene)
+            
+        sub_image = pygame.Surface.subsurface(tile.image,levelrect)  
+        sub_image_topleft = (scene.viewport.topleft)
+        
         scene.level.blit(sub_image, (levelrect.x, levelrect.y), (0, 0, self.tile_size_x, self.tile_size_y))
+        scene.level.blit(self.hole, (sub_image_topleft), (0, 0, self.tile_size_x, self.tile_size_y))
+        self.draw_blocks(scene, True)
          
     def reset(self):  
         """creates our map images"""   

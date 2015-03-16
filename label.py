@@ -34,10 +34,11 @@ class Label(pygame.sprite.DirtySprite):
         self.bordercolor = (pygame.color.Color("black"))
         self.border_on = False 
         self.clickable = False
+        self.viewport_ready = False
         self.option_rects()
         self.option_highlighted = None
         self.visible = True
-        self.viewport_ready = False
+        
         
         
     def toggle_visible(self, visible):
@@ -56,6 +57,7 @@ class Label(pygame.sprite.DirtySprite):
         
         self.rectlist = []
         self.rect = self.image.get_rect()
+       
         self.rect.centerx = lefthandcorner[0] + self.rect.width/2
         self.rect.centery = lefthandcorner[1] + self.rect.height/2
         
@@ -67,7 +69,7 @@ class Label(pygame.sprite.DirtySprite):
     def get_mouse_collision(self, rect):      
         return   rect.collidepoint(pygame.mouse.get_pos()) 
     
-    def get_highlighted_option(self):        
+    def get_highlighted_option(self):  
         for t in range(len(self.rectlist)):
             if self.get_mouse_collision(self.rectlist[t]):                  
                 self.option_highlighted = t
@@ -101,7 +103,11 @@ class Label(pygame.sprite.DirtySprite):
             if self.viewport_ready is False:
                 self.scene.screen.blit(self.image, (self.rect.x, self.rect.y), special_flags= 0)
             else: 
-                pass
+                
+                offset_x = (self.rect.x-self.scene.viewport.left ) 
+                offset_y = (self.rect.y-self.scene.viewport.top)                 
+                self.scene.level.blit(self.image, (self.rect.x+ self.scene.viewport.left, self.rect.y + self.scene.viewport.top), special_flags= 0)
+                self.rect.clamp_ip(self.scene.level_rect)
             if self.border_on:
                 pygame.draw.rect(self.scene.screen, self.bordercolor, (self.rect), 20)  
         else: pass

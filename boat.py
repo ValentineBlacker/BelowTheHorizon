@@ -74,6 +74,7 @@ class Boat(pygame.sprite.DirtySprite):
                 else: 
                     self.floating = False
                     self.velocity[0] = 0
+            else: self.velocity[0] = 0
         
     def update(self,scene, time_delta):        
         self.animation()        

@@ -244,21 +244,24 @@ class mainCharacter(pygame.sprite.DirtySprite):
         self.image = pygame.transform.flip(self.image, True, False) 
 
     def update(self,scene, time_delta):  
-        if self.controllable == True:
-            collidelist = self.check_collisions(scene.collisionblocks)
-            self.falling = self.check_falling(collidelist)        
-            self.do_fall()
-            wall = self.check_wall(collidelist) 
-              
-            self.do_wall(wall)     
-            self.animation()
-            if self.facing == 'left':            
-                self.flip()
+        
+        collidelist = self.check_collisions(scene.collisionblocks)
+        wall = self.check_wall(collidelist) 
+        self.move_and_calculate_displacement(scene, wall)
             
-            self.change_state()
-                           
-            self.move_and_calculate_displacement(scene, wall)
-            #self.check_bounds(scene) 
+        self.falling = self.check_falling(collidelist)        
+        self.do_fall()
+       
+          
+        self.do_wall(wall)     
+        self.animation()
+        if self.facing == 'left':            
+            self.flip()
+        
+        self.change_state()
+                       
+        
+        #self.check_bounds(scene) 
                
         scene.level.blit(self.image, (self.rect.x, self.rect.y), special_flags= 0) 
    
@@ -316,7 +319,7 @@ class mainCharacter(pygame.sprite.DirtySprite):
         self.velocity = [0, 0]
         
         
-        self.controllable = True
+        self.controllable = False
         #initial position
         self.rect.x, self.rect.y = self.location    
         

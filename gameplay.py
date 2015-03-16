@@ -8,6 +8,7 @@ import pygame
 import scene
 import maphandler
 import maincharacter
+import plainobject
 import baddie
 import prepare
 import boat
@@ -31,7 +32,7 @@ class gamePlay(scene.Scene):
         self.max_hp = 10
         self.hp = self.max_hp
         self.hp_block_amount = 3
-        self.boatdock = 350
+        self.boatdock = 450
         self.hour = 1
         
                                                             
@@ -46,15 +47,21 @@ class gamePlay(scene.Scene):
         
         self.background = pygame.Surface(self.screen.get_size())
         self.backgroundrect = self.background.get_rect()
-        self.spawn_location = (100,800)  
+        self.spawn_location = (150,1000)  
         self.mc = maincharacter.mainCharacter(self, self.spawn_location)               
         self.player = self.mc
+        
         
         self.boat = boat.Boat(self, (0, self.level_size[1]-(self.mainmap.pixel_tile_size[1]*2)))
         
         self.buddies = []
         self.buddyGroup = self.make_sprite_group(self.buddies)
-        self.add_group(self.buddyGroup)        
+        self.add_group(self.buddyGroup)   
+        
+        self.hp_blocks = [plainobject.plainObject(self, (h.x, h.y)) for h in self.mainmap.hp_block_list]
+        self.hpblockGroup = self.make_sprite_group(self.hp_blocks)        
+        self.add_group(self.hpblockGroup)  
+             
         self.update_light_sources()
                 
         self.baddies = [baddie.Baddie(self,(500+ (n*800),1400),image = prepare.IMAGES['mc']) for n in xrange(1)]           
@@ -79,7 +86,10 @@ class gamePlay(scene.Scene):
         self.continuelabel.toggle_visible(False)
         self.continuelabel.viewport_ready = True
         
-        self.sprites = [self.mainmap, self.baddieGroup, self.buddyGroup, self.mc, self.boat, self.continuelabel, self.label] 
+              
+            
+        
+        self.sprites = [self.mainmap, self.baddieGroup, self.buddyGroup, self.mc, self.boat, self.hpblockGroup, self.continuelabel, self.label] 
         self.center_viewport()         
         self.liferect = pygame.Rect(10,10,10,self.hp*10)
                 
@@ -98,11 +108,25 @@ class gamePlay(scene.Scene):
     
       
     def get_event(self, event):
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_x:
-                self.kill_buddy()
-            elif event.key == pygame.K_w:
-                self.create_buddy()
+        if event.type == pygame.MOUSEBUTTONDOWN:            
+            self.clicked = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.clicked = False
+        if self.continuelabel.visible == True:  
+            if event.type == pygame.KEYUP:
+                          
+                if self.continuelabel.option_highlighted == None:
+                    self.continuelabel.option_highlighted = 0
+                if self.continuelabel.option_highlighted < len(self.continuelabel.rectlist) + 1:
+                    self.continuelabel.option_highlighted += 1
+                else: self.continuelabel.option_highlighted = 0
+            
+        if self.player.controllable == True:
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_x:
+                    self.kill_buddy()
+                elif event.key == pygame.K_w:
+                    self.create_buddy()
                 
        
     def mouse_controls(self, time_delta):        
@@ -116,10 +140,12 @@ class gamePlay(scene.Scene):
             b.reset()
         for b in self.buddyGroup:
             b.kill() 
+        self.boat.reset()
         self.mainmap.reset()
         self.center_viewport()
-        self.hp = self.max_hp
-        
+        self.hp_blocks = [plainobject.plainObject(self, (h.x, h.y)) for h in self.mainmap.hp_block_list]
+        self.hpblockGroup = self.make_sprite_group(self.hp_blocks)  
+                
     def quit_to_title(self):
         self.done = True
         self.new_level()        
@@ -134,19 +160,23 @@ class gamePlay(scene.Scene):
             rectbitlist.append(rectbit)
             pygame.draw.rect(self.screen, (255,255,255), rectbit)
         
-    def check_if_dead(self):              
+    def check_if_dead(self):    
+             
         if self.mc.rect.top>= self.level_size[1] - self.mainmap.pixel_tile_size[1]:
             self.on_death()
             #self.mc.rect.x, self.mc.rect.y = (9000,9000)            
             return True
-        elif self.hp <= 0:
-           # self.hp = 100
+        elif self.hp <= 0:    
             self.on_death()
             return True
         else: return False
         
     def on_death(self):       
+        
         self.mc.controllable = False
+        self.mc.velocity = [0,0]
+        #for b in self.buddyGroup:
+            #b.kill()
         self.start_time= self.time        
         self.label.toggle_visible(True)        
         self.label.textlines = ["Game Over"]
@@ -156,15 +186,18 @@ class gamePlay(scene.Scene):
         self.label.textlines = ["Hour Cleared"]
         self.label.toggle_visible(True)
         
-    def handle_dead_menu(self):
+    def handle_dead_menu(self):        
         """called if player runs out of lives"""        
-        key_pressed =  pygame.key.get_pressed()
+        key_pressed =  pygame.key.get_pressed()        
         if self.clicked == True or key_pressed[pygame.K_RETURN]:
             if self.continuelabel.option_highlighted == 0:   
+                print '1'
                 self.label.toggle_visible(False)            
                 self.continuelabel.toggle_visible(False)
                 self.new_level()
+                self.hp = self.max_hp
             elif self.continuelabel.option_highlighted == 1:
+                print '2'
                 self.quit_to_title()
         else: pass
         
@@ -174,57 +207,25 @@ class gamePlay(scene.Scene):
         else: return False
         
     def check_hp_blocks(self):
-        for h in self.mainmap.hp_block_list:
-            if self.mc.rect.colliderect(h):
+        for h in self.hpblockGroup:
+            c = self.mc.rect.colliderect(h.rect)
+            if c:
                 if self.hp < self.max_hp:
                     self.hp += self.hp_block_amount
-                self.mainmap.hp_block_list.remove(h)
-                    
+                h.kill()
+                         
     
     def update_light_sources(self):
-        self.light_sources =  [ (self.mc.light_spread, self.mc.light_brightness, self.mc.rect.x, self.mc.rect.y)]       
-        buddylights = [(b.light_spread, b.light_brightness, b.rect.x, b.rect.y) for b in self.buddyGroup]        
+        #add 'for b in self.buddyGroup if b.rect.inflate(100,100).colliderect(self.viewport)
+        self.light_sources =  [ (self.mc.light_spread, self.mc.light_brightness, self.mc.rect.centerx, self.mc.rect.centery)]       
+        buddylights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.buddyGroup if b.rect.inflate(200,200).colliderect(self.viewport)]        
         for b in buddylights:
             self.light_sources.append(b)        
+        hplights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.hpblockGroup]        
+        #for b in hplights:
+          #  self.light_sources.append(b)   
         
-    def draw_blocks(self, switch):   
-        #light source tuple is (spread, brightness, rect.x, rect.y)       
-        if switch == True:       
-            for x in self.mainmap.block_list:
-                if x.colliderect(self.viewport):
-                    total_abspos = 0
-                    for l in self.light_sources:
-                        abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
-                        abspos = (abspos/l[0]) - l[1]  /2
-                        total_abspos += abspos       
-                    if total_abspos == 0:
-                        total_abspos = 1
-                    total_abspos = total_abspos/len(self.light_sources)  
-                    if total_abspos > 255: total_abspos= 255
-                    if total_abspos < 0: total_abspos = 0
-                    pygame.draw.rect(self.level, (255-total_abspos,255-total_abspos,255-total_abspos), x)
-                
-            for x in self.mainmap.waterblock_list:
-                if x.colliderect(self.viewport):
-                    total_abspos = 0
-                    for l in self.light_sources:
-                        abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
-                        abspos = (abspos/l[0]) - l[1]  /2
-                        total_abspos += abspos       
-                    if total_abspos == 0:
-                        total_abspos = 1
-                    total_abspos = total_abspos/len(self.light_sources)  
-                    if total_abspos > 255: total_abspos= 255
-                    if total_abspos < 0: total_abspos = 0
-                    pygame.draw.rect(self.level, (0,0,255-total_abspos), x)
-                
-            for x in self.mainmap.hp_block_list:
-                pygame.draw.rect(self.level, (255,255,255), x)
-            
-            pygame.draw.rect(self.level, (255,255,0), self.mainmap.gatecenter)
-            
-
-        else: pass
+    
     
     def center_viewport(self):
         self.viewport.centerx = self.player.rect.centerx
@@ -263,12 +264,18 @@ class gamePlay(scene.Scene):
         self.viewport.clamp_ip(self.level_rect)
             
     def blit_labels(self):
-        """well, it's come down to this. have to blit them here so they don't slide around"""
-        """hey I could do this for the background"""
-        self.screen.blit(self.label.image, (self.label.rect.x, self.label.rect.y), special_flags= 0)
-        self.label.rect.clamp_ip(self.level_rect)
-        self.screen.blit(self.continuelabel.image, (self.continuelabel.rect.x, self.continuelabel.rect.y), special_flags= 0)
-        self.continuelabel.rect.clamp_ip(self.level_rect)
+        """well, it's come down to this. have to blit them here so they don't slide around"""  
+            
+        if self.label.visible == True:                            
+            self.level.blit(self.label.image, (self.label.rect.x+ self.viewport.left, self.label.rect.y + self.viewport.top), special_flags= 0)
+            
+            
+        if self.continuelabel.visible == True:
+            self.screen.blit(self.continuelabel.image, (self.continuelabel.rect.x, self.continuelabel.rect.y + self.viewport.top), special_flags= 0)
+            self.continuelabel.rect.clamp_ip(self.level_rect)
+        
+        
+        #self.screen.blit(self.mainmap.hole, (0,0))
     
     def update_specifics(self, time, time_delta): 
         """things that need to be updated in individual scenes"""        
@@ -276,7 +283,7 @@ class gamePlay(scene.Scene):
         if self.time - self.start_time > self.long_time*time_delta:
             self.label.toggle_visible(False)
         
-        self.draw_blocks(True)       
+        #self.draw_blocks(True)       
         self.update_viewport((self.player.total_displacement))          
         self.screen.blit(self.level, (0,0), self.viewport)
         self.collisionblocks = [b for b in self.mainmap.block_list]
@@ -290,10 +297,11 @@ class gamePlay(scene.Scene):
         if self.check_if_dead(): 
             self.handle_dead_menu()
             
-        if self.mc.rect.colliderect(self.boat.rect):            
+        if self.mc.rect.colliderect(self.boat.rect):  
+            self.mc.controllable = True          
             self.update_viewport(self.boat.velocity)
             self.mc.rect.x += self.boat.velocity[0]
-            
+           
         self.blit_labels()
         
 def main():    
