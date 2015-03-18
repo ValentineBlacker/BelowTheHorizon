@@ -19,6 +19,7 @@ class mainCharacter(pygame.sprite.DirtySprite):
         self.location = location
         self.imagesize = imagesize
         self.number_of_frames = 6
+        self.number_of_frames_jumping = 8
         self.load_images()
         
         self.image = self.imagestill
@@ -38,7 +39,7 @@ class mainCharacter(pygame.sprite.DirtySprite):
         
         self.grav = 0.4
         self.gravity = 1
-        self.terminal_velocity = 5
+        self.terminal_velocity = 10
         self.jump_velocity = -100
                
         self.jump_power = -10.0
@@ -58,7 +59,7 @@ class mainCharacter(pygame.sprite.DirtySprite):
         self.imageidle= []        
         offsetidle = []
         
-        #row 0, 1, 2,3 = idle
+        #row 0, 1 = idle
         for x in range(2):
             for i in range(self.number_of_frames):
                 offsetidle.append((self.imagesize[0]*i,x*self.imagesize[1]))    
@@ -72,24 +73,28 @@ class mainCharacter(pygame.sprite.DirtySprite):
             tmpimg.blit(self.imagemaster, (0, 0), (offsetidle[i], self.imagesize))          
             self.imageidle.append(tmpimg)     
             
-        #row 2 = walking
+        #row 2, 3 = walking
             
         self.imagewalking= []        
         offsetwalking = []
-        for i in range(self.number_of_frames):
-            offsetwalking.append((self.imagesize[0]*i,2*self.imagesize[1]))
+        for x in range(2):
+            for i in range(self.number_of_frames):
+                offsetwalking.append((self.imagesize[0]*i, (2+x)*self.imagesize[1]))    
        
-        for i in range(0,self.number_of_frames):
+        for i in range(0,self.number_of_frames*2):
             tmpimg = pygame.Surface(self.imagesize, pygame.SRCALPHA)            
             tmpimg.blit(self.imagemaster, (0, 0), (offsetwalking[i], self.imagesize))            
             self.imagewalking.append(tmpimg)   
             
+            
+        # row 3 and 4 - jumping   
         self.imagejumping= []        
         offsetjumping = []
-        for i in range(self.number_of_frames):
-            offsetjumping.append((self.imagesize[0]*i,3*self.imagesize[1]))
+        for x in range(2):
+            for i in range(self.number_of_frames):
+                offsetjumping.append((self.imagesize[0]*i,(4+x)*self.imagesize[1]))    
        
-        for i in range(0,self.number_of_frames):
+        for i in range(0,self.number_of_frames_jumping):
             tmpimg = pygame.Surface(self.imagesize, pygame.SRCALPHA)            
             tmpimg.blit(self.imagemaster, (0, 0), (offsetjumping[i], self.imagesize))            
             self.imagejumping.append(tmpimg)  
@@ -131,8 +136,8 @@ class mainCharacter(pygame.sprite.DirtySprite):
             self.velocity[1] = 0
           
     def change_state(self):
-        if self.falling == False:
-            if  self.velocity[0] is not 0:   
+        if self.falling == False:            
+            if self.velocity[0] is not 0:   
                 self.walking()  
             else:             
                 self.idle()
@@ -166,6 +171,7 @@ class mainCharacter(pygame.sprite.DirtySprite):
     def jump(self, wall):
         """Called when the user presses the jump button."""                
         if self.falling == False: 
+            self.frame = 0
             self.velocity[1] = self.jump_power            
             self.on_moving = False    
             
@@ -185,25 +191,33 @@ class mainCharacter(pygame.sprite.DirtySprite):
     
     def animation(self):
         
-        if self.phase == 'jumping':            
+        delay = 5  
+        if self.phase == 'jumping': 
+            len(self.currentimage)
             if self.velocity[1] < 0:
-                               
-                if self.frame < 2:
-                    self.frame += 1
-                else: self.frame = 2
-            elif self.velocity[1] >= 0:
+                max_frame = 4
+                min_frame = 3
                 
-                if self.frame < 3:
-                    self.frame = 3
-                elif self.frame > 3 and self.frame < len(self.currentimage)-2:
-                    self.frame += 1
-                else: self.frame = len(self.currentimage)-2
-                
+            elif self.velocity[1] > 0:
+                max_frame = 6
+                min_frame = 4
+            
+            elif self.velocity[1] == 0:
+                max_frame = len(self.currentimage)
+                min_frame = 0
+             
+            self.pause += 1
+            if self.pause >= delay:
+                self.pause = 0
+                self.frame += 1
+                if self.frame >= max_frame:
+                    self.frame = min_frame  
+                   
+           
         else :
             #flip through the frames of animation
             if self.frame>=len(self.currentimage):
                 self.frame = 0  
-            delay = 10       
             
             self.pause += 1
             if self.pause >= delay:
@@ -211,7 +225,9 @@ class mainCharacter(pygame.sprite.DirtySprite):
                 self.frame += 1
                 if self.frame >= len(self.currentimage):
                     self.frame = 0               
-            
+        
+        if self.frame>=len(self.currentimage):
+            self.frame = 0     
         self.image = self.currentimage[self.frame]      
     
         
@@ -257,8 +273,10 @@ class mainCharacter(pygame.sprite.DirtySprite):
         self.animation()
         if self.facing == 'left':            
             self.flip()
-        
-        self.change_state()
+        if self.phase == 'jumping':
+            if self.frame == 0:
+                self.change_state()
+        else: self.change_state()
                        
         
         #self.check_bounds(scene) 

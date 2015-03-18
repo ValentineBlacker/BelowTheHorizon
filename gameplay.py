@@ -29,13 +29,18 @@ class gamePlay(scene.Scene):
         """ init all variables needed in scene"""
         self.speed = self.MASTER_SPEED * 3  
         self.collisionblocks = []
-        self.max_hp = 10
-        self.hp = self.max_hp
+        self.max_hp = 10        
         self.hp_block_amount = 3
         self.boatdock = 450
         self.hour = 1
+        self.reset_variables()
         
-                                                            
+        
+    def reset_variables(self):
+        self.background_illumination = 10
+        self.gate_opened = False
+        self.hp = self.max_hp
+                                                              
     def init_objects(self):
         """ creates objects needed in specfic scenes"""  
         self.level_size = (4000,1600)
@@ -43,16 +48,18 @@ class gamePlay(scene.Scene):
         self.level_rect = self.level.get_rect()
         self.viewport = self.screen.get_rect( )
        
-        self.mainmap = maphandler.foregroundMap(self.level_size) 
+        self.mainmap = maphandler.foregroundMap(self) 
         
-        self.background = pygame.Surface(self.screen.get_size())
-        self.backgroundrect = self.background.get_rect()
-        self.spawn_location = (150,1000)  
+        #self.background = pygame.Surface(self.screen.get_size())
+        #self.backgroundrect = self.background.get_rect()
+        self.boat = boat.Boat(self, (-200, self.level_size[1]-(self.mainmap.pixel_tile_size[1]*2)))
+        
+        self.spawn_location = (self.boat.rect.x+35, self.boat.rect.top - 200)
         self.mc = maincharacter.mainCharacter(self, self.spawn_location)               
         self.player = self.mc
         
         
-        self.boat = boat.Boat(self, (0, self.level_size[1]-(self.mainmap.pixel_tile_size[1]*2)))
+        
         
         self.buddies = []
         self.buddyGroup = self.make_sprite_group(self.buddies)
@@ -61,6 +68,10 @@ class gamePlay(scene.Scene):
         self.hp_blocks = [plainobject.plainObject(self, (h.x, h.y)) for h in self.mainmap.hp_block_list]
         self.hpblockGroup = self.make_sprite_group(self.hp_blocks)        
         self.add_group(self.hpblockGroup)  
+        
+        self.torches = [plainobject.plainObject(self, (h.x, h.y-50), 'torch') for h in self.mainmap.torch_block_list]
+        self.torchGroup = self.make_sprite_group(self.torches)        
+        self.add_group(self.torchGroup)  
              
         self.update_light_sources()
                 
@@ -68,10 +79,7 @@ class gamePlay(scene.Scene):
         self.baddieGroup = self.make_sprite_group(self.baddies)        
         self.add_group(self.baddieGroup)        
         
-        #
-        
-        #sun = magiccircle.magicCircle(self, self.mc)
-        
+                
         self.label = label.Label(self, (500,500), (300,300))
         
         self.label.textlines = ["hour {0}".format(self.label.int_to_roman[self.hour])]
@@ -89,7 +97,7 @@ class gamePlay(scene.Scene):
               
             
         
-        self.sprites = [self.mainmap, self.baddieGroup, self.buddyGroup, self.mc, self.boat, self.hpblockGroup, self.continuelabel, self.label] 
+        self.sprites = [self.mainmap, self.baddieGroup, self.buddyGroup, self.mc, self.boat, self.hpblockGroup, self.torchGroup, self.continuelabel, self.label] 
         self.center_viewport()         
         self.liferect = pygame.Rect(10,10,10,self.hp*10)
                 
@@ -134,17 +142,9 @@ class gamePlay(scene.Scene):
     
     def new_level(self):
         self.label.toggle_visible(True)                      
-        self.label.textlines = ["Hour {0}".format(self.label.int_to_roman[self.hour])]
-        self.mc.reset()        
-        for b in self.baddies:
-            b.reset()
-        for b in self.buddyGroup:
-            b.kill() 
-        self.boat.reset()
-        self.mainmap.reset()
-        self.center_viewport()
-        self.hp_blocks = [plainobject.plainObject(self, (h.x, h.y)) for h in self.mainmap.hp_block_list]
-        self.hpblockGroup = self.make_sprite_group(self.hp_blocks)  
+        self.reset_variables()
+        self.init_objects()
+        
                 
     def quit_to_title(self):
         self.done = True
@@ -202,7 +202,7 @@ class gamePlay(scene.Scene):
         else: pass
         
     def check_if_at_gate(self):
-        if self.mc.rect.colliderect(self.mainmap.gatecenter):
+        if self.mc.rect.colliderect(self.mainmap.gatecenter) and self.gate_opened == True:
             return True
         else: return False
         
@@ -213,17 +213,42 @@ class gamePlay(scene.Scene):
                 if self.hp < self.max_hp:
                     self.hp += self.hp_block_amount
                 h.kill()
+                
+    def check_if_all_lit(self):
+        t = [0+ 1 for t in self.torchGroup if t.lit == True]
+        print len(t), len(self.torches)
+        if len(t)+1 == len(self.torches):
+            self.gate_opened = True   
                          
+    def check_torches(self):
+        for t in self.torchGroup:
+            if t.lit == False:
+                c = self.mc.rect.colliderect(t.rect)
+                if c:      
+                    self.check_if_all_lit()          
+                    self.hp -=2
+                    self.background_illumination +=10
+                    t.lit = True
+                    t.shaded = False
+                            
     
     def update_light_sources(self):
         #add 'for b in self.buddyGroup if b.rect.inflate(100,100).colliderect(self.viewport)
+        viewport_big_rect = self.viewport.inflate(prepare.RESOLUTION[0]/2,prepare.RESOLUTION[1]/2)
         self.light_sources =  [ (self.mc.light_spread, self.mc.light_brightness, self.mc.rect.centerx, self.mc.rect.centery)]       
-        buddylights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.buddyGroup if b.rect.inflate(200,200).colliderect(self.viewport)]        
+        buddylights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.buddyGroup if b.rect.colliderect(viewport_big_rect)]        
         for b in buddylights:
             self.light_sources.append(b)        
-        hplights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.hpblockGroup]        
-        #for b in hplights:
-          #  self.light_sources.append(b)   
+        """hplights = [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery) for b in self.hpblockGroup if b.rect.colliderect(viewport_big_rect)]        
+        for b in hplights:
+            self.light_sources.append(b)   """
+        torchlights =   [(b.light_spread, b.light_brightness, b.rect.centerx, b.rect.centery - 50) for b in self.torchGroup if b.rect.colliderect(viewport_big_rect) if b.lit == True]
+        for b in torchlights:
+            self.light_sources.append(b)
+        if self.boat.rect.colliderect(viewport_big_rect):
+            boatlights = [ (self.boat.light_spread, self.boat.light_brightness, self.boat.rect.right, self.boat.rect.top),(self.boat.light_spread, self.boat.light_brightness, self.boat.rect.left, self.boat.rect.top) ]     
+            for b in boatlights:
+                self.light_sources.append(b)  
         
     
     
@@ -278,7 +303,8 @@ class gamePlay(scene.Scene):
         #self.screen.blit(self.mainmap.hole, (0,0))
     
     def update_specifics(self, time, time_delta): 
-        """things that need to be updated in individual scenes"""        
+        """things that need to be updated in individual scenes"""   
+          
         
         if self.time - self.start_time > self.long_time*time_delta:
             self.label.toggle_visible(False)
@@ -292,7 +318,12 @@ class gamePlay(scene.Scene):
         self.handle_life_bar()
         self.update_light_sources()   
         self.check_hp_blocks()
-        if self.check_if_at_gate(): self.quit_to_title()
+        self.check_torches()
+        if self.check_if_at_gate():
+            self.hour += 1
+            if self.hour >2:
+                self.quit_to_title()
+            else: self.new_level()
         
         if self.check_if_dead(): 
             self.handle_dead_menu()

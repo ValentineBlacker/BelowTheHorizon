@@ -18,15 +18,15 @@ class Boat(pygame.sprite.DirtySprite):
         self.image = image
         self.imagesize = (300,150)       
         self.reset()
-        self.frame = 0
-        self.pause = 0
-        self.floating = True
+        
         self.light_spread = 1
         self.light_brightness = 1
         
     def reset(self):
+        self.frame = 0
+        self.pause = 0        
         self.imagemaster = self.image
-        
+        self.floating = True
         self.number_of_frames = 2
         self.load_images()   
         self.rect = self.imagestand.get_rect()   

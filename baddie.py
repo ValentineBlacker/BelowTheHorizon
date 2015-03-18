@@ -33,12 +33,14 @@ class Baddie(maincharacter.mainCharacter):
         self.gravity = 1
         self.terminal_velocity = 5
         self.jump_velocity = -100
+        self.number_of_frames = 6
+        self.number_of_frames_jumping = 6
         self.reset()
         
     def reset(self):
         self.imagemaster = self.image
         
-        self.number_of_frames = 6
+        
         self.load_images()
         self.image = self.imagestill
         self.currentimage = self.imageidle

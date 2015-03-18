@@ -24,19 +24,21 @@ class Buddy(maincharacter.mainCharacter):
         self.imagesize = typedict[buddytype]['imagesize']
         self.speed = scene.speed
         self.max_speed = scene.speed 
-        self.velocity = [4, 0]
+        if scene.mc.facing == 'right':
+            self.velocity = [4, 0]
+        else: self.velocity = [-4, 0]
+        
         self.grav = 0.4
         self.gravity = 1
         self.terminal_velocity = 5
-        self.jump_velocity = -100
-        self.velocity = [4, 0]
+        self.jump_velocity = -100        
         self.grav = 0.4
         self.gravity = 1
         self.terminal_velocity = 5
         self.jump_velocity = -100
         self.light_spread = 5
-        self.light_brightness = 15
-        self.hp_factor = 3
+        self.light_brightness = 5
+        self.hp_factor = 1
         self.reset()
     
     def load_images(self):
@@ -85,6 +87,7 @@ class Buddy(maincharacter.mainCharacter):
         self.currentimage = self.imagewalking
         self.facing = 'right'        
         self.rect = self.image.get_rect() 
+        #self.rect.inflate_ip(20,0)
        
         self.phase = "idle"
                      
@@ -105,9 +108,11 @@ class Buddy(maincharacter.mainCharacter):
         
         
     def do_wall(self, scene, side):  
-               
+        print side    
         if side == False:
             pass
+        #if side == 'left' and side == 'right':
+            #self.velocity[0] = 0
         elif side == 'left':
             self.rect.x += 10
             self.velocity[0] = -self.velocity[0]
@@ -139,6 +144,7 @@ class Buddy(maincharacter.mainCharacter):
             self.animation()
             if self.velocity[0] < 0:            
                 self.flip()
+            else: pass
             
             self.change_state()
                            

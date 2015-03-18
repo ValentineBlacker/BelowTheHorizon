@@ -25,32 +25,35 @@ class MapTile(pygame.sprite.DirtySprite):
 
 class foregroundMap:
 
-    def __init__(self, level_size):
+    def __init__(self, scene, shaded = True):
         #self.tiles = []        
         self.map_width, self.map_height = 0, 0
         
         #self.tiletypes = []
-        self.tile_size = (level_size)
+        self.tile_size = scene.level_size
         self.pixel_tile_size = (50,50)
         self.tile_size_x = self.tile_size[0]
         self.tile_size_y = self.tile_size[1]
         self.ellipse_rect = pygame.Rect((0,0), ELLIPSE_SIZE)
-        self.reset()
-        
+        self.reset(scene)
+        self.shaded = shaded
         
         self.hole = None
         self.hole = pygame.Surface(prepare.RESOLUTION).convert_alpha()
         self.cdx = self.cdy = 0
         
-    def load_images(self):
-        self.tileset = prepare.MAPS['hour1']             
+    def load_images(self,scene):
+        if scene.hour > 1:
+            use_hour = 1
+        else: use_hour = scene.hour
+        self.tileset = prepare.MAPS["hour{0}image".format(use_hour)]             
         self.startinglocation= (0, 0)
         
         
         
-    def generate(self):
+    def generate(self,scene):
         #self.tiles = []
-        self.load_images()
+        self.load_images(scene)
         self.map_width = 1#random.randint(30, 50)
         self.map_height = 1#random.randint(30, 50)
         #print "Generated new map that is " + str(self.map_width) + "x" + str(self.map_height) + " tiles in size."
@@ -87,6 +90,11 @@ class foregroundMap:
                 if color == [255,255,0]:
                     hpblock =pygame.Rect((x *size_x), (y*size_y),size_x, size_y)                 
                     self.hp_block_list.append(hpblock)   
+                    
+                #torch locations - green
+                if color == [0,255,0]:
+                    torch =pygame.Rect((x *size_x), (y*size_y),size_x, size_y*2)                 
+                    self.torch_block_list.append(torch)   
                 
                 #gate = white. better only have one of these.
                 if color == [255,255,255]:
@@ -108,7 +116,7 @@ class foregroundMap:
     
     def make_hole_alpha(self, scene):
         
-        self.hole.fill((2,2,2,220)) 
+        self.hole.fill((2,2,2,255- (scene.background_illumination))) 
         
         l = scene.light_sources[0]
         ellipse_rect = pygame.Rect((0,0), (250,200))
@@ -136,13 +144,15 @@ class foregroundMap:
             for x in scene.mainmap.block_list:
                 if x.colliderect(scene.viewport):
                     total_abspos = 0
-                    for l in scene.light_sources:
+                    for l in scene.light_sources[1:]:
                         abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
                         abspos = (abspos/l[0]) - l[1]  /2
                         total_abspos += abspos       
                     if total_abspos == 0:
                         total_abspos = 1
-                    total_abspos = total_abspos/len(scene.light_sources)  
+                    if len(scene.light_sources[1:])  > 0:
+                        total_abspos = total_abspos/len(scene.light_sources[1:])  
+                    else: total_abspos = 255
                     if total_abspos > 255: total_abspos= 255
                     if total_abspos < 0: total_abspos = 0
                     pygame.draw.rect(scene.level, (255-total_abspos,255-total_abspos,255-total_abspos), x)
@@ -150,21 +160,23 @@ class foregroundMap:
             for x in scene.mainmap.waterblock_list:
                 if x.colliderect(scene.viewport):
                     total_abspos = 0
-                    for l in scene.light_sources:
+                    for l in scene.light_sources[1:]:
                         abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
                         abspos = (abspos/l[0]) - l[1]  /2
                         total_abspos += abspos       
                     if total_abspos == 0:
                         total_abspos = 1
-                    total_abspos = total_abspos/len(scene.light_sources)  
+                    if len(scene.light_sources[1:]) > 0:
+                        total_abspos = total_abspos/len(scene.light_sources[1:])  
+                    else: total_abspos = 255
                     if total_abspos > 255: total_abspos= 255
                     if total_abspos < 0: total_abspos = 0
                     pygame.draw.rect(scene.level, (0,0,255-total_abspos), x)
                 
             #for x in scene.mainmap.hp_block_list:
                 #pygame.draw.rect(scene.level, (255,255,255), x)
-            
-            pygame.draw.rect(scene.level, (255,255,0), self.gatecenter)
+            if self.gatecenter is not None:
+                pygame.draw.rect(scene.level, (255,255,0), self.gatecenter)
             
 
         else: pass
@@ -175,23 +187,25 @@ class foregroundMap:
         levelrect = scene.level.get_rect()
         levelrect.center = scene.level.get_rect().center    
         
-             
-        self.make_hole_alpha(scene)
+        if self.shaded == True:   
+            self.make_hole_alpha(scene)
             
         sub_image = pygame.Surface.subsurface(tile.image,levelrect)  
         sub_image_topleft = (scene.viewport.topleft)
         
         scene.level.blit(sub_image, (levelrect.x, levelrect.y), (0, 0, self.tile_size_x, self.tile_size_y))
-        scene.level.blit(self.hole, (sub_image_topleft), (0, 0, self.tile_size_x, self.tile_size_y))
+        if self.shaded == True:
+            scene.level.blit(self.hole, (sub_image_topleft), (0, 0, self.tile_size_x, self.tile_size_y))
         self.draw_blocks(scene, True)
          
-    def reset(self):  
+    def reset(self,scene):  
         """creates our map images"""   
-        self.generate()
-        self.pixelmap = prepare.MAPS['demo']
+        self.generate(scene)
+        self.pixelmap = prepare.MAPS["hour{0}".format(scene.hour)]  
         self.block_list = []  
         self.waterblock_list = []     
         self.hp_block_list = []
+        self.torch_block_list = []
         self.gatecenter = None        
         self.find_blocktiles()
         
