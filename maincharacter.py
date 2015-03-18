@@ -152,7 +152,9 @@ class mainCharacter(pygame.sprite.DirtySprite):
         else: return True
         
     def check_wall(self, collidelist):   
-        if collidelist[10] == 1 or collidelist[8] == 1 or collidelist[3] == 1:
+        if collidelist[3] == 1 and collidelist[4] == 1:
+            return 'both'
+        elif collidelist[10] == 1 or collidelist[8] == 1 or collidelist[3] == 1:
             return 'left'
         elif collidelist[9] == 1 or collidelist[8] == 1 or collidelist[4] == 1:         
             return 'right'

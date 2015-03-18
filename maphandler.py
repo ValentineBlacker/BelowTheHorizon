@@ -144,7 +144,7 @@ class foregroundMap:
             for x in scene.mainmap.block_list:
                 if x.colliderect(scene.viewport):
                     total_abspos = 0
-                    for l in scene.light_sources[1:]:
+                    for l in scene.light_sources[:1]:
                         abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
                         abspos = (abspos/l[0]) - l[1]  /2
                         total_abspos += abspos       
@@ -160,7 +160,7 @@ class foregroundMap:
             for x in scene.mainmap.waterblock_list:
                 if x.colliderect(scene.viewport):
                     total_abspos = 0
-                    for l in scene.light_sources[1:]:
+                    for l in scene.light_sources[:1]:
                         abspos =  int(abs(x.x-l[2]) + abs(l[3]-x.y))    
                         abspos = (abspos/l[0]) - l[1]  /2
                         total_abspos += abspos       

@@ -36,7 +36,7 @@ class Buddy(maincharacter.mainCharacter):
         self.gravity = 1
         self.terminal_velocity = 5
         self.jump_velocity = -100
-        self.light_spread = 5
+        self.light_spread = 3
         self.light_brightness = 5
         self.hp_factor = 1
         self.reset()
@@ -84,10 +84,11 @@ class Buddy(maincharacter.mainCharacter):
         self.number_of_frames = 3
         self.load_images()
         self.image = self.imagestill
+        self.imageidle = self.imagewalking
         self.currentimage = self.imagewalking
         self.facing = 'right'        
         self.rect = self.image.get_rect() 
-        #self.rect.inflate_ip(20,0)
+        self.rect.inflate_ip(20,0)
        
         self.phase = "idle"
                      
@@ -107,20 +108,18 @@ class Buddy(maincharacter.mainCharacter):
         
         
         
-    def do_wall(self, scene, side):  
-        print side    
+    def do_wall(self, scene, side):        
         if side == False:
-            pass
-        #if side == 'left' and side == 'right':
-            #self.velocity[0] = 0
+            pass        
         elif side == 'left':
             self.rect.x += 10
             self.velocity[0] = -self.velocity[0]
         elif side == 'right':
             self.rect.x -= 10
             self.velocity[0] = -self.velocity[0]
-        else:             
-            self.velocity[0] = -self.velocity[0]  
+        elif side == 'both':
+            self.velocity[0] = 0
+        
        
         
     def move(self, scene):   
@@ -142,7 +141,7 @@ class Buddy(maincharacter.mainCharacter):
                 self.falling = False
             self.do_wall(scene,wall)     
             self.animation()
-            if self.velocity[0] < 0:            
+            if self.velocity[0] <= 0:            
                 self.flip()
             else: pass
             

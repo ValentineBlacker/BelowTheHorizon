@@ -75,13 +75,13 @@ class plainObject(pygame.sprite.DirtySprite):
         
     def calc_abs_pos(self, scene):
         total_abspos = 0
-        for l in scene.light_sources[1:]:
+        for l in scene.light_sources[:1]:
             abspos =  int(abs(self.rect.x-l[2]) + abs(l[3]-self.rect.y))    
             abspos = (abspos/l[0]) - l[1]  /2
             total_abspos += abspos       
         if total_abspos == 0:
             total_abspos = 1
-        if len(scene.light_sources[1:])  > 0:
+        if len(scene.light_sources[:1])  > 0:
             total_abspos = total_abspos/len(scene.light_sources[1:])  
         else: total_abspos = 255
         if total_abspos > 255: total_abspos= 255
